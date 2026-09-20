@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>J.A.R.V.I.S.</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%2304070b'/%3E%3Ccircle cx='50' cy='50' r='42' fill='none' stroke='%234fd8ff' stroke-width='2'/%3E%3Ccircle cx='50' cy='50' r='30' fill='none' stroke='%234fd8ff' stroke-width='1.5' stroke-dasharray='3 5'/%3E%3Ccircle cx='50' cy='50' r='14' fill='none' stroke='%234fd8ff' stroke-width='3'/%3E%3C/svg%3E">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg: #04070b;
+    --bg2: #070d14;
+    --panel: rgba(15, 28, 38, 0.55);
+    --panel-border: rgba(79, 216, 255, 0.18);
+    --cyan: #4fd8ff;
+    --cyan-soft: rgba(79, 216, 255, 0.5);
+    --cyan-dim: #17414f;
+    --amber: #ffb454;
+    --text: #d8ecf5;
+    --text-dim: #5f8798;
+    --danger: #ff5f6d;
+    --ok: #6dffb0;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0; padding:0; height:100%;
+    background: radial-gradient(ellipse at 50% 20%, #0a1520 0%, var(--bg) 55%, #020305 100%);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    overflow: hidden;
+  }
+
+  #root{
+    position:relative;
+    width:100vw; height:100vh;
+    display:flex; flex-direction:column;
+  }
+
+  /* scanlines / vignette */
+  #root::before{
+    content:'';
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(0deg, rgba(79,216,255,0.025) 0px, rgba(79,216,255,0.025) 1px, transparent 1px, transparent 3px);
+    pointer-events:none;
+    z-index: 50;
+  }
+  #root::after{
+    content:'';
+    position:absolute; inset:0;
+    box-shadow: inset 0 0 160px rgba(0,0,0,0.75);
+    pointer-events:none;
+    z-index: 51;
+  }
+
+  /* ===== HEADER ===== */
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--panel-border);
+    background: linear-gradient(180deg, rgba(79,216,255,0.06), transparent);
+    z-index: 5;
+  }
+  .brand{
+    display:flex; align-items:center; gap:12px;
+  }
+  .brand-dot{
+    width:10px; height:10px; border-radius:50%;
+    background: var(--cyan);
+    box-shadow: 0 0 8px 2px var(--cyan-soft);
+    animation: blink 2.4s ease-in-out infinite;
+  }
+  @keyframes blink{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+  .brand h1{
+    font-family:'Orbitron', sans-serif; font-weight:700;
+    font-size: 20px; letter-spacing: 6px; margin:0;
+    color: var(--cyan);
+    text-shadow: 0 0 12px rgba(79,216,255,0.5);
+  }
+  .brand small{
+    display:block; font-family:'JetBrains Mono', monospace;
+    font-size:10px; letter-spacing:2px; color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .hstat{
+    display:flex; gap: 22px; align-items:center;
+    font-family:'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+  .hstat span.v{ color: var(--cyan); }
+  #clock{ min-width: 92px; text-align:right; }
+
+  /* ===== MAIN GRID ===== */
+  main{
+    flex:1; display:grid;
+    grid-template-columns: 260px 1fr 260px;
+    gap: 18px;
+    padding: 18px 24px;
+    overflow:hidden;
+    z-index: 5;
+  }
+
+  .panel{
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 14px 16px;
+    display:flex; flex-direction:column;
+    min-height:0;
+    position:relative;
+  }
+  .panel::before{
+    content:'';
+    position:absolute; top:0; left:0; width:14px; height:14px;
+    border-top:1px solid var(--cyan); border-left:1px solid var(--cyan);
+    opacity:0.6;
+  }
+  .panel::after{
+    content:'';
+    position:absolute; bottom:0; right:0; width:14px; height:14px;
+    border-bottom:1px solid var(--cyan); border-right:1px solid var(--cyan);
+    opacity:0.6;
+  }
+  .panel h2{
+    font-family:'Orbitron', sans-serif; font-size: 11px; letter-spacing: 3px;
+    color: var(--amber); margin: 0 0 12px; font-weight:500;
+    display:flex; align-items:center; gap:8px;
+  }
+  .panel h2::before{ content:''; width:6px; height:6px; background:var(--amber); display:inline-block; box-shadow:0 0 6px var(--amber); }
+
+  /* LEFT: log */
+  #log{
+    flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px;
+    font-size: 13px; line-height:1.4; padding-right:4px;
+  }
+  #log::-webkit-scrollbar{ width:4px; }
+  #log::-webkit-scrollbar-thumb{ background: var(--cyan-dim); }
+  .entry{ animation: fadein 0.35s ease; }
+  @keyframes fadein{ from{ opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+  .entry .who{
+    font-family:'JetBrains Mono', monospace; font-size: 9px; letter-spacing:2px;
+    text-transform:uppercase; margin-bottom:2px;
+  }
+  .entry.user .who{ color: var(--text-dim); }
+  .entry.ai .who{ color: var(--cyan); }
+  .entry.ai p{ color: var(--text); }
+  .entry.user p{ color: var(--text-dim); }
+  .entry p{ margin:0; }
+  .entry.sys .who{ color: var(--amber); }
+  .entry.sys p{ color: var(--text-dim); font-style:italic; font-size:12px; }
+  .entry a{ color: var(--cyan); text-decoration: underline; word-break: break-all; }
+  .entry pre{
+    background: rgba(0,255,255,0.06);
+    border: 1px solid rgba(0,255,255,0.25);
+    border-radius: 4px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    margin: 8px 0 4px 0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 12.5px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .entry .code-actions{ margin: -2px 0 10px 0; }
+  .download-btn{
+    display:inline-block;
+    margin-top:4px;
+    padding: 3px 10px;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    background: rgba(0,255,255,0.08);
+    border: 1px solid rgba(0,255,255,0.35);
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .download-btn:hover{ background: rgba(0,255,255,0.18); }
+
+  /* CENTER: core */
+  #core-wrap{
+    display:flex; align-items:center; justify-content:center;
+    position:relative; flex:1;
+  }
+  #core-svg{ width: 340px; height: 340px; }
+  .ring{ fill:none; stroke: var(--cyan-dim); stroke-width:1; }
+  .ring-active{ stroke: var(--cyan); filter: drop-shadow(0 0 4px var(--cyan-soft)); }
+  #core-status{
+    position:absolute; bottom: 6px; left:50%; transform:translateX(-50%);
+    font-family:'Orbitron', sans-serif; font-size: 12px; letter-spacing:4px;
+    color: var(--cyan); text-shadow:0 0 8px var(--cyan-soft);
+    text-transform:uppercase;
+  }
+
+  /* RIGHT: sys panel */
+  #sys-list{ display:flex; flex-direction:column; gap: 10px; font-family:'JetBrains Mono', monospace; font-size:11px; }
+  .sysrow{ display:flex; justify-content:space-between; color:var(--text-dim); border-bottom:1px dashed rgba(79,216,255,0.12); padding-bottom:8px; }
+  .sysrow .v{ color: var(--cyan); }
+  #waveform{ width:100%; height: 70px; margin-top: 10px; }
+  #voice-toggle-wrap{ margin-top:auto; display:flex; flex-direction:column; gap:8px; }
+  .voice-picker{ display:flex; flex-direction:column; gap:6px; margin-top:6px; }
+  .voice-picker label{
+    font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:1px; color: var(--text-dim);
+  }
+  #voiceSelect{
+    background: rgba(0,0,0,0.3); color: var(--text); border:1px solid var(--panel-border);
+    border-radius:3px; padding:6px 8px; font-family:'Rajdhani', sans-serif; font-size:13px;
+    outline:none;
+  }
+  #voiceSelect option{ background: #0a1018; color: var(--text); }
+  #voiceTest{
+    font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:1px;
+    background: transparent; color: var(--cyan); border:1px solid var(--cyan-dim);
+    padding:6px 8px; border-radius:3px; cursor:pointer;
+  }
+  #voiceTest:hover{ background: rgba(79,216,255,0.12); }
+  .toggle{
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text-dim);
+  }
+  .switch{
+    width:34px; height:18px; border:1px solid var(--panel-border); border-radius:10px;
+    position:relative; cursor:pointer; background: rgba(0,0,0,0.3);
+  }
+  .switch .dot{
+    width:12px; height:12px; border-radius:50%; background:var(--text-dim);
+    position:absolute; top:2px; left:2px; transition: all 0.2s;
+  }
+  .switch.on{ border-color:var(--cyan); }
+  .switch.on .dot{ left:18px; background:var(--cyan); box-shadow:0 0 6px var(--cyan-soft); }
+
+  /* ===== INPUT BAR ===== */
+  footer{
+    padding: 16px 24px 22px;
+    z-index:5;
+  }
+  #bar{
+    display:flex; align-items:center; gap:12px;
+    border: 1px solid var(--panel-border);
+    background: var(--panel);
+    border-radius: 4px;
+    padding: 8px 10px 8px 16px;
+  }
+  #mic-btn{
+    width:38px; height:38px; border-radius:50%;
+    border:1px solid var(--cyan-dim); background: rgba(79,216,255,0.06);
+    color: var(--cyan); cursor:pointer; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    transition: all 0.15s;
+  }
+  #mic-btn:hover{ background: rgba(79,216,255,0.15); }
+  #mic-btn.listening{
+    background: var(--danger); border-color:var(--danger); color:#fff;
+    box-shadow: 0 0 14px rgba(255,95,109,0.6);
+    animation: pulse 1.1s ease-in-out infinite;
+  }
+  @keyframes pulse{ 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.08);} }
+  #mic-btn.armed{
+    border-color: var(--cyan); box-shadow: 0 0 8px rgba(79,216,255,0.35);
+    animation: armpulse 2.6s ease-in-out infinite;
+  }
+  @keyframes armpulse{ 0%,100%{ box-shadow:0 0 6px rgba(79,216,255,0.25);} 50%{ box-shadow:0 0 12px rgba(79,216,255,0.55);} }
+  #text-in{
+    flex:1; background:transparent; border:none; outline:none;
+    color: var(--text); font-family:'Rajdhani', sans-serif; font-size:16px; letter-spacing:0.5px;
+  }
+  #text-in::placeholder{ color: var(--text-dim); }
+  #send-btn{
+    font-family:'Orbitron', sans-serif; font-size:11px; letter-spacing:2px;
+    background: transparent; color: var(--cyan); border:1px solid var(--cyan-dim);
+    padding: 9px 18px; border-radius:3px; cursor:pointer; transition: all 0.15s;
+  }
+  #send-btn:hover{ background: rgba(79,216,255,0.12); border-color:var(--cyan); }
+  #send-btn:disabled{ opacity:0.4; cursor:default; }
+
+  #key-btn{
+    font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:1px;
+    background: transparent; color: var(--text-dim); border:1px solid var(--panel-border);
+    padding: 9px 12px; border-radius:3px; cursor:pointer; flex-shrink:0;
+  }
+  #key-btn:hover{ color: var(--cyan); border-color: var(--cyan-dim); }
+  #forget-btn{
+    font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:1px;
+    background: transparent; color: var(--text-dim); border:1px solid var(--panel-border);
+    padding: 9px 10px; border-radius:3px; cursor:pointer; flex-shrink:0;
+  }
+  #forget-btn:hover{ color: var(--danger); border-color: var(--danger); }
+  #key-hint{
+    font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.5px;
+    color: var(--text-dim); margin-top:8px; padding-left:4px;
+  }
+  #key-hint.ok{ color: var(--ok); }
+
+  ::selection{ background: var(--cyan-soft); }
+
+  #image-preview{
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:8px; padding:8px 12px;
+    background: var(--panel); border:1px solid var(--panel-border); border-radius:4px;
+  }
+  #image-preview img{
+    height:48px; width:48px; object-fit:cover; border-radius:3px; border:1px solid var(--cyan-dim);
+  }
+  #image-preview span{
+    font-family:'JetBrains Mono', monospace; font-size:11px; color: var(--text-dim); flex:1;
+  }
+  #image-preview button{
+    background: transparent; color: var(--danger); border:1px solid var(--danger);
+    border-radius:3px; padding:4px 10px; cursor:pointer; font-family:'JetBrains Mono', monospace; font-size:10px;
+  }
+  .entry img.attached-img{
+    max-width:180px; border-radius:4px; border:1px solid var(--cyan-dim); display:block; margin-bottom:4px;
+  }
+</style>
+</head>
+<body>
+<div id="root">
+
+  <header>
+    <div class="brand">
+      <div class="brand-dot"></div>
+      <div>
+        <h1>J.A.R.V.I.S.</h1>
+        <small>JUST A RATHER VERY INTELLIGENT SYSTEM</small>
+      </div>
+    </div>
+    <div class="hstat">
+      <div>LINK: <span class="v" id="link-status">ONLINE</span></div>
+      <div id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="panel">
+      <h2>Session Log</h2>
+      <div id="log"></div>
+    </div>
+
+    <div id="core-wrap">
+      <svg id="core-svg" viewBox="0 0 340 340">
+        <circle class="ring" id="r1" cx="170" cy="170" r="150"/>
+        <circle class="ring" id="r2" cx="170" cy="170" r="120" stroke-dasharray="4 6"/>
+        <circle class="ring ring-active" id="r3" cx="170" cy="170" r="95"/>
+        <circle class="ring" id="r4" cx="170" cy="170" r="60" stroke-dasharray="2 4"/>
+        <circle cx="170" cy="170" r="30" fill="rgba(79,216,255,0.08)" stroke="var(--cyan)" stroke-width="1.5" id="coreDot"/>
+      </svg>
+      <div id="core-status">IDLE</div>
+    </div>
+
+    <div class="panel">
+      <h2>System</h2>
+      <div id="sys-list">
+        <div class="sysrow"><span>MODEL</span><span class="v">HAIKU-4.5</span></div>
+        <div class="sysrow"><span>MIC</span><span class="v" id="mic-support">CHECK</span></div>
+        <div class="sysrow"><span>VOICE OUT</span><span class="v" id="tts-support">CHECK</span></div>
+        <div class="sysrow"><span>EXCHANGES</span><span class="v" id="msg-count">0</span></div>
+      </div>
+      <canvas id="waveform"></canvas>
+      <div id="voice-toggle-wrap">
+        <div class="toggle">
+          <span>SPEAK REPLIES</span>
+          <div class="switch on" id="speakSwitch"><div class="dot"></div></div>
+        </div>
+        <div class="toggle">
+          <span>WAKE: "HEY JARVIS"</span>
+          <div class="switch" id="wakeSwitch"><div class="dot"></div></div>
+        </div>
+        <div class="voice-picker">
+          <label for="voiceSelect">VOICE</label>
+          <select id="voiceSelect"></select>
+          <button id="voiceTest" title="Preview this voice">▶ TEST</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div id="image-preview" style="display:none;"></div>
+    <div id="bar">
+      <button id="mic-btn" title="Voice input" aria-label="Voice input">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <rect x="9" y="2" width="6" height="12" rx="3"/>
+          <path d="M5 10a7 7 0 0 0 14 0"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+        </svg>
+      </button>
+      <input id="text-in" type="text" placeholder="Speak, type, or paste an image..." autocomplete="off"/>
+      <button id="send-btn">TRANSMIT</button>
+      <button id="key-btn" title="Set API key" aria-label="Set API key">KEY</button>
+      <button id="forget-btn" title="Clear conversation memory" aria-label="Clear conversation memory">FORGET</button>
+    </div>
+    <div id="key-hint">No API key set — click KEY to connect. Saved in this browser only.</div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  const log = document.getElementById('log');
+  const textIn = document.getElementById('text-in');
+  const sendBtn = document.getElementById('send-btn');
+  const micBtn = document.getElementById('mic-btn');
+  const coreStatus = document.getElementById('core-status');
+  const coreDot = document.getElementById('coreDot');
+  const msgCount = document.getElementById('msg-count');
+  const speakSwitch = document.getElementById('speakSwitch');
+  const linkStatus = document.getElementById('link-status');
+
+  let speakEnabled = true;
+  let exchanges = 0;
+  let history = [];
+  const MEM_KEY = 'jarvis_memory_v1';
+  const MAX_TURNS = 12; // exchanges kept, older ones roll off automatically
+
+  function saveMemory(){
+    try {
+      // Strip image data before persisting — keeps storage small and images
+      // are session-only; only the text sticks around between reloads.
+      const sanitized = history.map(m => {
+        if(Array.isArray(m.content)){
+          const textBlock = m.content.find(b => b.type === 'text');
+          return { role: m.role, content: (textBlock ? textBlock.text : '[image]') };
+        }
+        return m;
+      });
+      localStorage.setItem(MEM_KEY, JSON.stringify(sanitized));
+    } catch(err){}
+  }
+
+  function loadMemory(){
+    try {
+      const raw = localStorage.getItem(MEM_KEY);
+      if(!raw) return false;
+      const parsed = JSON.parse(raw);
+      if(!Array.isArray(parsed) || !parsed.length) return false;
+      history = parsed;
+      parsed.forEach(m => {
+        const text = Array.isArray(m.content) ? (m.content.find(b => b.type === 'text')?.text || '[image]') : m.content;
+        addEntry(m.role === 'user' ? 'user' : 'ai', text);
+      });
+      return true;
+    } catch(err){ return false; }
+  }
+
+  function trimHistory(){
+    const maxMessages = MAX_TURNS * 2;
+    if(history.length > maxMessages){
+      history = history.slice(history.length - maxMessages);
+    }
+  }
+  const API_KEY_STORAGE = 'jarvis_api_key';
+  let apiKey = '';
+
+  const keyBtn = document.getElementById('key-btn');
+  const keyHint = document.getElementById('key-hint');
+
+  function loadApiKey(){
+    try {
+      const saved = localStorage.getItem(API_KEY_STORAGE);
+      if(saved){
+        apiKey = saved;
+        keyHint.textContent = 'Key loaded from this browser. Ready to talk.';
+        keyHint.classList.add('ok');
+      }
+    } catch(err){}
+  }
+  loadApiKey();
+
+  keyBtn.addEventListener('click', () => {
+    const entered = window.prompt('Paste your Anthropic API key (from console.anthropic.com). Saved in this browser only — never sent anywhere but Anthropic\'s API. Leave blank and click OK to remove a saved key.');
+    if(entered === null) return; // cancelled
+    if(entered.trim()){
+      apiKey = entered.trim();
+      try { localStorage.setItem(API_KEY_STORAGE, apiKey); } catch(err){}
+      keyHint.textContent = 'Key saved in this browser. Ready to talk.';
+      keyHint.classList.add('ok');
+    } else {
+      apiKey = '';
+      try { localStorage.removeItem(API_KEY_STORAGE); } catch(err){}
+      keyHint.textContent = 'No API key set — click KEY to connect.';
+      keyHint.classList.remove('ok');
+    }
+  });
+
+  const SYSTEM_PROMPT = "You are J.A.R.V.I.S., a witty, unflappable, highly capable AI assistant in the style of Tony Stark's assistant. Address the user as 'sir' or 'ma'am' occasionally (not every line) and keep a calm, dry, understated British wit. Be genuinely helpful and precise. Keep responses fairly concise (2-5 sentences) unless asked for depth, since they may be read aloud. You have full vision capability — when an image is included in the conversation, you can see and analyze it in detail, just like any other Claude model. Never claim you cannot view images or that you are text-only; that is false. If an image is attached, describe or analyze exactly what's in it.";
+
+  function currentSystemPrompt(){
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+    const timeStr = now.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+    return SYSTEM_PROMPT + " Right now it is " + dateStr + ", " + timeStr + " (your user's local time). Use this if asked about the date, time, or anything time-relative — don't say you lack access to it. You also have a web search tool. You MUST use it — don't answer from memory — for anything current: sports schedules and scores, news, prices, weather, stock prices, who holds some position now, or any fact that could plausibly have changed since your training data. Only skip it for timeless facts (math, definitions, historical events, how things work). Never say you lack real-time access or suggest the user check elsewhere — search first, then answer directly. You also have a web_fetch tool — use it whenever the user gives you a specific URL or asks you to read/summarize a particular page, rather than just guessing from the link text. You also have a code_execution tool — a real sandbox that runs Bash and Python. Use it for actual calculations, data processing, or anything you'd otherwise have to estimate; don't do math in your head when you can run it. Note: code execution can produce charts/images, but you can only describe those in words here, not display them. Don't mention any of these tools by name or narrate that you're using them — just do it and answer naturally. When you give a link, write it as a plain URL or markdown link so it renders clickable. When you give code, a script, or any content the user would want saved as a file, put it in a triple-backtick fenced code block with the language name right after the opening backticks (e.g. ```python) — the interface automatically adds a Download button under any fenced block, so you don't need to tell the user how to save it.";
+  }
+
+  function addEntry(who, text, imageDataUrl){
+    const div = document.createElement('div');
+    div.className = 'entry ' + who;
+    const whoLabel = who === 'user' ? 'You' : (who === 'ai' ? 'Jarvis' : 'System');
+    let inner = '<div class="who">' + whoLabel + '</div>';
+    if(imageDataUrl){
+      inner += '<img class="attached-img" src="' + imageDataUrl + '">';
+    }
+    inner += '<p></p>';
+    div.innerHTML = inner;
+    div.querySelector('p').textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    return div.querySelector('p');
+  }
+
+  // --- Escape raw text before we inject our own <a>/<pre> tags ---
+  function escapeHtml(str){
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // Guess a reasonable filename/extension for a fenced code block.
+  function extForLang(lang){
+    const map = { python:'py', py:'py', javascript:'js', js:'js', typescript:'ts', ts:'ts',
+      html:'html', css:'css', json:'json', bash:'sh', sh:'sh', shell:'sh', powershell:'ps1',
+      c:'c', cpp:'cpp', java:'java', yaml:'yml', yml:'yml', sql:'sql', text:'txt' };
+    return map[(lang || '').toLowerCase()] || 'txt';
+  }
+
+  function triggerDownload(filename, content){
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  // Turn plain AI reply text into safe HTML: linkifies URLs/markdown links,
+  // and turns ```fenced``` code blocks into <pre> with a download button.
+  // Returns { html, codeBlocks } where codeBlocks is used to wire up buttons after insertion.
+  function renderRichText(text){
+    const codeBlocks = [];
+    const fenceRe = /```(\w*)\n?([\s\S]*?)```/g;
+    let lastIndex = 0;
+    let html = '';
+    let match;
+    let blockIndex = 0;
+    while((match = fenceRe.exec(text)) !== null){
+      html += linkify(escapeHtml(text.slice(lastIndex, match.index)));
+      const lang = match[1] || '';
+      const code = match[2].replace(/\n$/, '');
+      const id = 'code-block-' + Date.now() + '-' + (blockIndex++);
+      codeBlocks.push({ id, lang, code });
+      html += '<pre id="' + id + '">' + escapeHtml(code) + '</pre>' +
+              '<div class="code-actions"><button class="download-btn" data-code-id="' + id + '">Download</button></div>';
+      lastIndex = fenceRe.lastIndex;
+    }
+    html += linkify(escapeHtml(text.slice(lastIndex)));
+    return { html, codeBlocks };
+  }
+
+  // Turn [text](url) and bare http(s) URLs into <a> tags. Assumes input is already HTML-escaped.
+  function linkify(escapedText){
+    let out = escapedText.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    out = out.replace(/(^|[\s(])((https?:\/\/)[^\s<]+)/g, (m, pre, url) => {
+      return pre + '<a href="' + url + '" target="_blank" rel="noopener">' + url + '</a>';
+    });
+    return out.replace(/\n/g, '<br>');
+  }
+
+  // Finalize an AI message paragraph once streaming is done: render rich text,
+  // wire up code-block download buttons, and add a "save whole reply" button.
+  function finalizeAiEntry(paraEl, fullText){
+    const { html, codeBlocks } = renderRichText(fullText);
+    paraEl.innerHTML = html;
+    codeBlocks.forEach(block => {
+      const btn = paraEl.parentElement.querySelector('[data-code-id="' + block.id + '"]');
+      if(btn){
+        btn.addEventListener('click', () => triggerDownload('jarvis-snippet.' + extForLang(block.lang), block.code));
+      }
+    });
+    // Only bother with a "save reply" button for substantial replies worth keeping as a file.
+    if(fullText.trim().length > 200 || codeBlocks.length){
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'download-btn';
+      saveBtn.textContent = 'Save reply as .txt';
+      saveBtn.style.marginTop = '8px';
+      saveBtn.addEventListener('click', () => triggerDownload('jarvis-reply.txt', fullText));
+      paraEl.parentElement.appendChild(saveBtn);
+    }
+  }
+
+  // --- Image paste support ---
+  let pastedImage = null; // { mediaType, base64, dataUrl }
+  const imagePreview = document.getElementById('image-preview');
+
+  function setPastedImage(mediaType, base64, dataUrl){
+    pastedImage = { mediaType, base64, dataUrl };
+    imagePreview.style.display = 'flex';
+    imagePreview.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    const label = document.createElement('span');
+    label.textContent = 'Image attached — it will be sent with your next message.';
+    const clearBtn = document.createElement('button');
+    clearBtn.textContent = 'REMOVE';
+    clearBtn.addEventListener('click', clearPastedImage);
+    imagePreview.appendChild(img);
+    imagePreview.appendChild(label);
+    imagePreview.appendChild(clearBtn);
+  }
+
+  function clearPastedImage(){
+    pastedImage = null;
+    imagePreview.style.display = 'none';
+    imagePreview.innerHTML = '';
+  }
+
+  document.addEventListener('paste', (e) => {
+    const items = e.clipboardData && e.clipboardData.items;
+    if(!items) return;
+    for(const item of items){
+      if(item.type && item.type.startsWith('image/')){
+        const file = item.getAsFile();
+        if(!file) continue;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result; // data:image/png;base64,....
+          const base64 = dataUrl.split(',')[1];
+          setPastedImage(file.type, base64, dataUrl);
+        };
+        reader.readAsDataURL(file);
+        e.preventDefault();
+        break;
+      }
+    }
+  });
+
+  function setState(state){
+    // state: idle, listening, thinking, speaking
+    coreStatus.textContent = state.toUpperCase();
+    const svg = document.getElementById('core-svg');
+    svg.classList.remove('st-idle','st-listening','st-thinking','st-speaking');
+    if(state === 'idle'){
+      coreDot.setAttribute('fill','rgba(79,216,255,0.08)');
+      svg.style.animation = 'none';
+    } else if(state === 'listening'){
+      coreDot.setAttribute('fill','rgba(255,95,109,0.25)');
+      svg.style.animation = 'spin 3s linear infinite';
+    } else if(state === 'thinking'){
+      coreDot.setAttribute('fill','rgba(255,180,84,0.2)');
+      svg.style.animation = 'spin 1.2s linear infinite';
+    } else if(state === 'speaking'){
+      coreDot.setAttribute('fill','rgba(109,255,176,0.25)');
+      svg.style.animation = 'spin 2s linear infinite reverse';
+    }
+  }
+
+  const styleTag = document.createElement('style');
+  styleTag.textContent = '@keyframes spin{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }';
+  document.head.appendChild(styleTag);
+
+  function clockTick(){
+    const d = new Date();
+    document.getElementById('clock').textContent = d.toTimeString().slice(0,8);
+  }
+  setInterval(clockTick, 1000);
+  clockTick();
+
+  // Waveform (idle ambient + mic reactive)
+  const canvas = document.getElementById('waveform');
+  const ctx = canvas.getContext('2d');
+  function resizeCanvas(){
+    canvas.width = canvas.clientWidth * devicePixelRatio;
+    canvas.height = canvas.clientHeight * devicePixelRatio;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  let level = 0;
+  let targetLevel = 0.08;
+  function drawWave(){
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.strokeStyle = '#4fd8ff';
+    ctx.lineWidth = 2 * devicePixelRatio;
+    ctx.beginPath();
+    const bars = 40;
+    const bw = w/bars;
+    level += (targetLevel - level) * 0.15;
+    for(let i=0;i<bars;i++){
+      const amp = (Math.sin(i*0.5 + Date.now()/200) * 0.5 + 0.5) * level * h * 0.8 + 2;
+      const x = i*bw + bw/2;
+      ctx.moveTo(x, h/2 - amp/2);
+      ctx.lineTo(x, h/2 + amp/2);
+    }
+    ctx.stroke();
+    requestAnimationFrame(drawWave);
+  }
+  drawWave();
+
+  // Speech recognition
+  let recognition = null;
+  let wakeRecognition = null;
+  let wakeEnabled = false;
+  let capturingCommand = false;
+  const WAKE_RE = /\bhey,?\s*jarvis\b/i;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let wakeStartedAt = 0;
+  let wakeFailStreak = 0;
+
+  function updateMicIdleVisual(){
+    if(capturingCommand) return;
+    micBtn.classList.toggle('armed', wakeEnabled);
+  }
+
+  if(SR){
+    recognition = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    document.getElementById('mic-support').textContent = 'READY';
+
+    recognition.onstart = () => {
+      capturingCommand = true;
+      micBtn.classList.remove('armed');
+      micBtn.classList.add('listening');
+      setState('listening');
+      targetLevel = 0.9;
+    };
+    recognition.onend = () => {
+      capturingCommand = false;
+      micBtn.classList.remove('listening');
+      targetLevel = 0.08;
+      if(coreStatus.textContent === 'LISTENING') setState('idle');
+      if(wakeEnabled) armWakeWord();
+      updateMicIdleVisual();
+    };
+    recognition.onerror = () => {
+      capturingCommand = false;
+      micBtn.classList.remove('listening');
+      targetLevel = 0.08;
+      setState('idle');
+      if(wakeEnabled) setTimeout(armWakeWord, 800);
+      updateMicIdleVisual();
+    };
+    recognition.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      textIn.value = transcript;
+      handleSend();
+    };
+
+    // Wake-word listener: a separate continuous, low-key recognizer
+    wakeRecognition = new SR();
+    wakeRecognition.continuous = true;
+    wakeRecognition.interimResults = true;
+    wakeRecognition.lang = 'en-US';
+
+    wakeRecognition.onresult = (e) => {
+      let heard = '';
+      for(let i = e.resultIndex; i < e.results.length; i++){
+        heard += ' ' + e.results[i][0].transcript;
+      }
+      if(WAKE_RE.test(heard)){
+        try { wakeRecognition.stop(); } catch(err){}
+        addEntry('sys', 'Wake word detected.');
+        setTimeout(() => { try { recognition.start(); } catch(err){} }, 250);
+      }
+    };
+    wakeRecognition.onend = () => {
+      if(!wakeEnabled || capturingCommand) return;
+      const ranFor = Date.now() - wakeStartedAt;
+      if(ranFor < 800){
+        // Failed almost instantly — likely the permission prompt is still
+        // pending. Retrying immediately just re-triggers the popup, so back off.
+        wakeFailStreak++;
+        if(wakeFailStreak >= 3){
+          wakeEnabled = false;
+          document.getElementById('wakeSwitch').classList.remove('on');
+          updateMicIdleVisual();
+          addEntry('sys', 'Wake word paused — click Allow on the microphone prompt, then toggle WAKE back on.');
+          return;
+        }
+        setTimeout(armWakeWord, 1200 * wakeFailStreak);
+      } else {
+        wakeFailStreak = 0;
+        armWakeWord();
+      }
+    };
+    wakeRecognition.onerror = (e) => {
+      if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+        wakeEnabled = false;
+        document.getElementById('wakeSwitch').classList.remove('on');
+        addEntry('sys', 'Microphone access denied — wake word disabled.');
+        updateMicIdleVisual();
+      }
+      // other errors (no-speech, network) are swallowed; onend handles restart/backoff
+    };
+  } else {
+    document.getElementById('mic-support').textContent = 'N/A';
+    micBtn.disabled = true;
+    micBtn.style.opacity = 0.3;
+    document.getElementById('wakeSwitch').style.pointerEvents = 'none';
+    document.getElementById('wakeSwitch').style.opacity = 0.3;
+  }
+
+  function armWakeWord(){
+    if(!wakeRecognition || capturingCommand || !wakeEnabled) return;
+    wakeStartedAt = Date.now();
+    try { wakeRecognition.start(); } catch(err){}
+  }
+
+  document.getElementById('wakeSwitch').addEventListener('click', () => {
+    if(!SR) return;
+    wakeEnabled = !wakeEnabled;
+    document.getElementById('wakeSwitch').classList.toggle('on', wakeEnabled);
+    if(wakeEnabled){
+      addEntry('sys', 'Listening for "hey jarvis".');
+      armWakeWord();
+    } else {
+      try { wakeRecognition.stop(); } catch(err){}
+      micBtn.classList.remove('armed');
+    }
+  });
+
+  micBtn.addEventListener('click', () => {
+    if(!recognition) return;
+    if(wakeEnabled){ try { wakeRecognition.stop(); } catch(err){} }
+    try { recognition.start(); } catch(e){}
+  });
+
+  // Speech synthesis
+  const canSpeak = 'speechSynthesis' in window;
+  document.getElementById('tts-support').textContent = canSpeak ? 'READY' : 'N/A';
+  const voiceSelect = document.getElementById('voiceSelect');
+  const voiceTestBtn = document.getElementById('voiceTest');
+  const VOICE_KEY = 'jarvis_voice_name';
+  let selectedVoice = null;
+
+  function populateVoices(){
+    if(!canSpeak) return;
+    const voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+    if(!voices.length) return;
+    voiceSelect.innerHTML = '';
+    voices.forEach((v, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = v.name.replace(/^Microsoft |^Google /, '');
+      voiceSelect.appendChild(opt);
+    });
+    voiceSelect._voices = voices;
+
+    // Keep whatever voice is already chosen (this fn can be called several
+    // times as the browser loads voices in — don't stomp on a manual pick).
+    const rememberedName = selectedVoice ? selectedVoice.name : (localStorage.getItem(VOICE_KEY) || null);
+    let startIdx = rememberedName ? voices.findIndex(v => v.name === rememberedName) : -1;
+    if(startIdx < 0){
+      startIdx = voices.findIndex(v => /male|daniel|david|guy|ryan|uk english male/i.test(v.name));
+    }
+    if(startIdx < 0) startIdx = 0;
+    voiceSelect.value = startIdx;
+    selectedVoice = voices[startIdx];
+  }
+  populateVoices();
+  if(canSpeak) window.speechSynthesis.onvoiceschanged = populateVoices;
+
+  voiceSelect.addEventListener('change', () => {
+    const voices = voiceSelect._voices || [];
+    selectedVoice = voices[Number(voiceSelect.value)] || null;
+    if(selectedVoice){
+      try { localStorage.setItem(VOICE_KEY, selectedVoice.name); } catch(err){}
+    }
+  });
+
+  voiceTestBtn.addEventListener('click', () => {
+    speak("Good evening, sir. Systems are online and ready.");
+  });
+
+  function speak(text){
+    if(!speakEnabled || !canSpeak) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.02;
+    u.pitch = 0.85;
+    if(selectedVoice) u.voice = selectedVoice;
+    u.onstart = () => setState('speaking');
+    u.onend = () => setState('idle');
+    window.speechSynthesis.speak(u);
+  }
+
+  speakSwitch.addEventListener('click', () => {
+    speakEnabled = !speakEnabled;
+    speakSwitch.classList.toggle('on', speakEnabled);
+  });
+
+  async function callJarvisStream(userContent, onDelta){
+    const messages = history; // already includes this user turn — caller pushes before calling
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+        "anthropic-beta": "code-execution-2025-08-25,web-fetch-2025-09-10"
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 800,
+        system: currentSystemPrompt(),
+        messages: messages,
+        stream: true,
+        tools: [
+          { type: "web_search_20250305", name: "web_search" },
+          { type: "web_fetch_20250910", name: "web_fetch", max_uses: 5 },
+          { type: "code_execution_20250825", name: "code_execution" }
+        ]
+      })
+    });
+    if(!response.ok){
+      const errBody = await response.json().catch(() => ({}));
+      throw new Error(errBody?.error?.message || ('HTTP ' + response.status));
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullText = '';
+    while(true){
+      const { done, value } = await reader.read();
+      if(done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data:')) continue;
+        const jsonStr = line.slice(5).trim();
+        if(!jsonStr) continue;
+        let evt;
+        try { evt = JSON.parse(jsonStr); } catch(e){ continue; }
+        if(evt.type === 'content_block_delta' && evt.delta && evt.delta.type === 'text_delta'){
+          fullText += evt.delta.text;
+          onDelta(fullText);
+        }
+      }
+    }
+    return fullText;
+  }
+
+  async function handleSend(){
+    const val = textIn.value.trim();
+    if(!val && !pastedImage) return;
+    if(!apiKey){
+      addEntry('sys', 'No API key on file. Click KEY to connect me, sir.');
+      return;
+    }
+    textIn.value = '';
+    sendBtn.disabled = true;
+
+    const currentImage = pastedImage;
+    clearPastedImage();
+
+    let userContent;
+    if(currentImage){
+      const displayText = val || "What's in this image?";
+      addEntry('user', displayText, currentImage.dataUrl);
+      userContent = [
+        { type: "image", source: { type: "base64", media_type: currentImage.mediaType, data: currentImage.base64 } },
+        { type: "text", text: displayText }
+      ];
+    } else {
+      addEntry('user', val);
+      userContent = val;
+    }
+    history.push({ role:'user', content: userContent });
+    setState('thinking');
+    linkStatus.textContent = 'BUSY';
+
+    let aiPara = null;
+    try {
+      const reply = await callJarvisStream(userContent, (partial) => {
+        if(!aiPara){
+          aiPara = addEntry('ai', '');
+          setState('speaking');
+        }
+        aiPara.textContent = partial;
+        log.scrollTop = log.scrollHeight;
+      });
+      if(aiPara) finalizeAiEntry(aiPara, reply);
+      history.push({ role:'assistant', content: reply });
+      trimHistory();
+      saveMemory();
+      exchanges++;
+      msgCount.textContent = exchanges;
+      speak(reply);
+      if(!speakEnabled || !canSpeak) setState('idle');
+    } catch(err){
+      if(aiPara && !aiPara.textContent) aiPara.closest('.entry').remove();
+      addEntry('sys', 'Connection error: ' + (err.message || 'systems standing by.'));
+      setState('idle');
+    } finally {
+      linkStatus.textContent = 'ONLINE';
+      sendBtn.disabled = false;
+    }
+  }
+
+  sendBtn.addEventListener('click', handleSend);
+  textIn.addEventListener('keydown', (e) => { if(e.key === 'Enter') handleSend(); });
+
+  const hadMemory = loadMemory();
+  if(hadMemory){
+    exchanges = Math.floor(history.length / 2);
+    msgCount.textContent = exchanges;
+  }
+  setState('idle');
+  addEntry('sys', hadMemory ? 'Welcome back, sir. Picking up where we left off.' : 'All systems online. Good day, sir. How may I be of assistance?');
+
+  document.getElementById('forget-btn').addEventListener('click', () => {
+    if(!confirm('Clear all remembered conversation? This can\'t be undone.')) return;
+    history = [];
+    try { localStorage.removeItem(MEM_KEY); } catch(err){}
+    log.innerHTML = '';
+    addEntry('sys', 'Memory cleared. Starting fresh, sir.');
+  });
+})();
+</script>
+</body>
+</html>
